@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>속지 합성 도구</title>
+<script type="module">import*as m from"./pdfjs/pdf.min.js";m.GlobalWorkerOptions.workerSrc="./pdfjs/pdf.worker.min.js";window.pdfjsLib=m;</script>
+<style>
+:root{--bg:#e9ebee;--panel:#fff;--ink:#1b1f27;--mute:#5d6572;--line:#d3d7de;--acc:#2a4fd6;--accfg:#fff;--stage:#cfd3da;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171b;--panel:#1f2228;--ink:#e8eaee;--mute:#9aa2af;--line:#343842;--acc:#7b97ff;--accfg:#101319;--stage:#0f1114}}
+:root[data-theme="dark"]{--bg:#15171b;--panel:#1f2228;--ink:#e8eaee;--mute:#9aa2af;--line:#343842;--acc:#7b97ff;--accfg:#101319;--stage:#0f1114}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+h1{font-size:17px;margin:0;font-weight:700}
+header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+.wrap{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px;max-width:1500px;margin:0 auto}
+@media(max-width:860px){.wrap{grid-template-columns:1fr}}
+.side{display:flex;flex-direction:column;gap:12px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+.box h2{font-size:14px;margin:0 0 8px}
+.drop{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;display:block;border:2px dashed var(--line);border-radius:6px;padding:14px;text-align:center;color:var(--mute);cursor:pointer}
+.drop.over,.drop:hover,.drop:focus-within{border-color:var(--acc);color:var(--ink)}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.drop b{display:block;color:var(--ink)}
+.fname:empty{display:none}
+.fname{margin-top:6px;font-size:12px;color:var(--mute);word-break:break-all}
+.row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.row label{flex:0 0 74px;color:var(--mute);font-size:13px}
+.row input[type=range]{flex:1;accent-color:var(--acc)}
+.row output{flex:0 0 44px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px}
+input[type=number]{width:64px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)}
+select{padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)}
+button{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--acc)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button.pri{background:var(--acc);color:var(--accfg);border-color:var(--acc);font-weight:700;width:100%;padding:10px}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pg{display:none}
+.stagebox{border-radius:8px;overflow:hidden;line-height:0}
+canvas{display:block;width:100%;height:auto;touch-action:none;cursor:default}
+.sub{margin:12px 0 0;font-weight:700;font-size:13px}.sub:first-child{margin-top:0}
+details.box>summary{font-size:14px;font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
+details.box>summary::-webkit-details-marker{display:none}
+details.box>summary::before{content:"▸";display:inline-block;color:var(--mute);transition:transform .15s}
+details.box[open]>summary::before{transform:rotate(90deg)}
+details.box>summary:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:4px}
+.bd{margin-top:8px}
+.fxgrid{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:10px;align-items:stretch}
+#adj .row{margin-top:6px}#adj .row label{flex:0 0 58px;font-size:12px}#adj .row output{flex:0 0 36px;font-size:11px}
+.pvbox{position:relative;min-height:260px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:repeating-conic-gradient(#8883 0 25%,transparent 0 50%) 0 0/12px 12px}
+.pvbox canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+@media (prefers-reduced-motion:reduce){details.box>summary::before{transition:none}}
+#blist{max-height:170px;overflow:auto;margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.bi{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.bi.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,transparent)}
+.bi .bn{flex:1;min-width:0;text-align:left;border:0;background:none;padding:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bi .bp{width:54px}.bi .bx{padding:2px 7px}
+.pager{display:none;align-items:center;justify-content:center;gap:12px;margin-top:8px}
+.hint{color:var(--mute);font-size:12px;margin:8px 2px 0}
+</style>
+</head>
+<body>
+<header>
+<h1>속지 합성 도구</h1>
+<p>오른쪽 페이지에 바탕, 왼쪽 페이지에 끼울 디자인을 올려 한 장으로 합칩니다.</p>
+</header>
+<div class="wrap">
+<div class="side">
+  <details class="box" open><summary>1. 바탕 파일 (오른쪽 페이지)</summary><div class="bd">
+    <label class="drop" id="dropB"><input type="file" id="fileB" accept="image/*,.avif,.avifs,.heic,.heif,.tif,.tiff,.jfif,.svg,.ico,.bmp,.webp,.pdf,application/pdf" multiple><b>파일 선택 또는 끌어놓기</b>여러 장 가능 · 이미지, PDF</label>
+    <div class="fname" id="nameB"></div>
+    <div id="blist"></div>
+    <div class="btns"><button id="bClear">모두 비우기</button></div>
+  </div></details>
+  <details class="box" open><summary>2. 끼울 파일 (왼쪽 페이지)</summary><div class="bd">
+    <label class="drop" id="dropI"><input type="file" id="fileI" accept="image/*,.avif,.avifs,.heic,.heif,.tif,.tiff,.jfif,.svg,.ico,.bmp,.webp,.pdf,application/pdf"><b>파일 선택 또는 끌어놓기</b>이미지, PDF</label>
+    <div class="fname" id="nameI"></div>
+    <div class="row pg" id="pgI"><label>PDF 쪽수</label><input type="number" id="numI" min="1" value="1"><span id="totI"></span></div>
+  </div></details>
+  <details class="box" open><summary>3. 끼울 칸 조정</summary><div class="bd">
+    <div class="row"><label for="sW">칸 너비</label><input type="range" id="sW" min="1" max="100" step="0.1"><output id="oW"></output></div>
+    <div class="row"><label for="sH">칸 높이</label><input type="range" id="sH" min="1" max="100" step="0.1"><output id="oH"></output></div>
+    <div class="row"><label for="sX">가로 위치</label><input type="range" id="sX" min="0" max="100" step="0.1"><output id="oX"></output></div>
+    <div class="row"><label for="sY">세로 위치</label><input type="range" id="sY" min="0" max="100" step="0.1"><output id="oY"></output></div>
+    <div class="row"><label for="sO">투명도</label><input type="range" id="sO" min="5" max="100" step="1"><output id="oO"></output></div>
+    <div class="row"><label for="fit">이미지 맞춤</label><select id="fit"><option value="cover">칸을 가득 채움</option><option value="contain">칸 안에 전부 보이게</option></select></div>
+    <div class="btns">
+      <button id="bStrip">얇은 띠로 되돌리기</button>
+      <button id="bPage">왼쪽 페이지 전체</button>
+    </div>
+  </div></details>
+  <details class="box" open><summary>4. 끼울 이미지 효과</summary><div class="bd">
+    <div class="fxgrid"><div id="adj"></div><div class="pvbox"><canvas id="pv" aria-label="보정 미리보기"></canvas></div></div>
+    <div class="btns"><button id="bSeed">노이즈 모양 바꾸기</button><button id="bAdj">효과 초기화</button></div>
+  </div></details>
+  <button class="pri" id="bSave">JPG로 저장</button>
+  <div class="hint" id="saveMsg" role="status"></div>
+</div>
+<div>
+  <div class="stagebox"><canvas id="cv" width="1600" height="1100" aria-label="합성 미리보기"></canvas></div>
+  <div class="pager" id="pager"><button id="bPrev">◀ 이전</button><span id="pgInfo"></span><button id="bNext">다음 ▶</button></div>
+</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const cv=$("cv"),ctx=cv.getContext("2d");
+const slots={I:{src:null,pdf:null,name:""}};const bases=[];let cur=-1;const bsrc=()=>cur>=0&&bases[cur]?bases[cur].src:null;
+const fr={x:0,y:0,w:100,h:100,op:1};
+let W=1600,H=1100;
+const opt=()=>({side:"right",fit:$("fit").value,layer:"above",paper:"#ffffff",clip:true});
+const halfRect=(onBaseSide)=>{const right=opt().side==="right"?onBaseSide:!onBaseSide;return{x:right?W/2:0,y:0,w:W/2,h:H}};
+const st=document.createElement("canvas"),sc=st.getContext("2d");
+let view={x:0,w:W},frozen=false,guides=[];
+function stageSize(){const b=bsrc();if(b){W=b.width*2;H=b.height}else{W=1600;H=1100}
+ if(st.width!==W||st.height!==H){st.width=W;st.height=H}}
+function defFrame(){const w=W/2*0.1125;return{x:opt().side==="right"?W/2-w:W/2,y:0,w,h:H}}
+function strip(){Object.assign(fr,defFrame())}
+function cropBox(F=fr,Wx=W){if(!opt().clip)return{x:0,w:Wx};if(opt().side==="right"){const x=Math.max(0,Math.min(F.x,Wx/2));return{x,w:Wx-x}}return{x:0,w:Math.min(Wx,Math.max(F.x+F.w,Wx/2))}}
+const A0={zoom:100,ox:0,oy:0,rot:0,sat:0,hue:0,temp:0,bright:0,contrast:0,noise:0,dot:0,levels:0};
+const a={...A0,seed:1};
+const SPEC=[["크기"],["zoom","배율",20,400,"%"],["ox","좌우 이동",-100,100,"%"],["oy","상하 이동",-100,100,"%"],["rot","회전",-180,180,"°"],
+ ["색감"],["sat","채도",-100,100,""],["hue","색상 회전",-180,180,"°"],["temp","색온도",-100,100,""],
+ ["밝기"],["bright","밝기",-100,100,""],["contrast","대비",-100,100,""],
+ ["질감"],["noise","노이즈",0,100,""],["dot","도트 크기",0,60,"px"],["levels","색 단계",0,16,""]];
+const fxOn=()=>a.sat||a.hue||a.temp||a.bright||a.contrast||a.noise||a.dot>1||a.levels>=2;
+function mulberry32(x){return()=>{x|=0;x=x+0x6D2B79F5|0;let t=Math.imul(x^x>>>15,1|x);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function layoutDraw(g,s,w,h,fit){const k=(fit==="cover"?Math.max(w/s.width,h/s.height):Math.min(w/s.width,h/s.height))*a.zoom/100;
+ g.save();g.translate(w/2+a.ox/100*w,h/2+a.oy/100*h);if(a.rot)g.rotate(a.rot*Math.PI/180);
+ g.drawImage(s,-s.width*k/2,-s.height*k/2,s.width*k,s.height*k);g.restore()}
+function fx(id){const d=id.data,w=id.width,h=id.height;
+ if(a.dot>1){const z=Math.round(a.dot);
+  for(let by=0;by<h;by+=z)for(let bx=0;bx<w;bx+=z){const ye=Math.min(h,by+z),xe=Math.min(w,bx+z);let r=0,g=0,b=0,al=0,n=0;
+   for(let y=by;y<ye;y++)for(let x=bx;x<xe;x++){const i=(y*w+x)*4;r+=d[i];g+=d[i+1];b+=d[i+2];al+=d[i+3];n++}
+   r/=n;g/=n;b/=n;al/=n;
+   for(let y=by;y<ye;y++)for(let x=bx;x<xe;x++){const i=(y*w+x)*4;d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=al}}}
+ const br=a.bright*2.55,cc=a.contrast*2.55,cf=(259*(cc+255))/(255*(259-cc)),sa=1+a.sat/100,tp=a.temp*0.6,
+  th=a.hue*Math.PI/180,cs=Math.cos(th),sn=Math.sin(th),
+  m=[.213+cs*.787-sn*.213,.715-cs*.715-sn*.715,.072-cs*.072+sn*.928,.213-cs*.213+sn*.143,.715+cs*.285+sn*.140,.072-cs*.072-sn*.283,.213-cs*.213-sn*.787,.715-cs*.715+sn*.715,.072+cs*.928+sn*.072],
+  lv=a.levels>=2?a.levels-1:0,amp=a.noise*1.275,rnd=mulberry32(a.seed),cl=v=>v<0?0:v>255?255:v;
+ for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;let r=d[i],g=d[i+1],b=d[i+2];
+  if(a.hue){const R=r*m[0]+g*m[1]+b*m[2],G=r*m[3]+g*m[4]+b*m[5],B=r*m[6]+g*m[7]+b*m[8];r=R;g=G;b=B}
+  if(a.sat){const l=.299*r+.587*g+.114*b;r=l+(r-l)*sa;g=l+(g-l)*sa;b=l+(b-l)*sa}
+  r+=br+tp;g+=br;b+=br-tp;
+  if(a.contrast){r=cf*(r-128)+128;g=cf*(g-128)+128;b=cf*(b-128)+128}
+  r=cl(r);g=cl(g);b=cl(b);
+  if(lv){r=Math.round(r/255*lv)/lv*255;g=Math.round(g/255*lv)/lv*255;b=Math.round(b/255*lv)/lv*255}
+  if(a.noise){const n=(rnd()-.5)*2*amp;r+=n;g+=n;b+=n}
+  d[i]=r;d[i+1]=g;d[i+2]=b}}
+let proc=null,procKey="",procSrc=null;
+function processed(s,fit,fw,fh){const w=Math.max(1,Math.round(fw)),h=Math.max(1,Math.round(fh)),key=w+"x"+h+fit+JSON.stringify(a);
+ if(proc&&procSrc===s&&procKey===key)return proc;
+ proc=document.createElement("canvas");proc.width=w;proc.height=h;const g=proc.getContext("2d",{willReadFrequently:true});
+ layoutDraw(g,s,w,h,fit);const id=g.getImageData(0,0,w,h);fx(id);g.putImageData(id,0,0);procSrc=s;procKey=key;return proc}
+let raf=0;const later=()=>{if(!raf)raf=requestAnimationFrame(()=>{raf=0;draw()})};
+const adjBox=$("adj");
+for(const sp of SPEC){
+ if(sp.length===1){const d=document.createElement("div");d.className="sub";d.textContent=sp[0];adjBox.appendChild(d);continue}
+ const[k,label,min,max,unit]=sp,row=document.createElement("div");row.className="row";
+ row.innerHTML='<label for="a_'+k+'">'+label+'</label><input type="range" id="a_'+k+'" min="'+min+'" max="'+max+'" step="1" value="'+A0[k]+'"><output id="ao_'+k+'"></output>';
+ adjBox.appendChild(row);
+ const inp=row.querySelector("input"),out=row.querySelector("output");
+ const show=()=>{out.textContent=(k==="dot"&&a.dot<2)||(k==="levels"&&a.levels<2)?"끔":a[k]+unit};
+ let drag=false;const snaps=k==="rot"?[-90,0,90]:(min<=0&&max>=0?[0]:[]),thr=k==="rot"?3:Math.max(1,(max-min)*0.0125);
+ if(snaps.length){inp.addEventListener("pointerdown",()=>{drag=true});for(const ev of["pointerup","pointercancel"])window.addEventListener(ev,()=>{drag=false})}
+ inp.addEventListener("input",()=>{let v=parseFloat(inp.value);
+  if(drag){for(const t of snaps)if(Math.abs(v-t)<=thr){v=t;break};inp.value=v}
+  a[k]=v;show();later()});show();
+}
+$("bAdj").onclick=()=>{for(const sp of SPEC){if(sp.length===1)continue;const k=sp[0];a[k]=A0[k];$("a_"+k).value=A0[k];$("a_"+k).dispatchEvent(new Event("input"))}};
+$("bSeed").onclick=()=>{a.seed=(Math.random()*1e9)|0;draw()};
+const pv=$("pv"),pg=pv.getContext("2d");
+function drawPv(o){const s=slots.I.src;
+ if(!s){if(pv.width!==160||pv.height!==420){pv.width=160;pv.height=420}pg.setTransform(1,0,0,1,0,0);pg.clearRect(0,0,160,420);
+  pg.fillStyle="#8a93a3";pg.font="13px sans-serif";pg.textAlign="center";pg.fillText("끼울 파일을 올리면",80,200);pg.fillText("보정 결과가 보임",80,220);return}
+ const w=Math.max(1,Math.round(fr.w)),h=Math.max(1,Math.round(fr.h)),k=Math.min(1,1600/Math.max(w,h)),pw=Math.max(1,Math.round(w*k)),ph=Math.max(1,Math.round(h*k));
+ if(pv.width!==pw||pv.height!==ph){pv.width=pw;pv.height=ph}
+ pg.setTransform(1,0,0,1,0,0);pg.clearRect(0,0,pw,ph);
+ if(fxOn())pg.drawImage(processed(s,o.fit,fr.w,fr.h),0,0,pw,ph);else{pg.scale(k,k);layoutDraw(pg,s,w,h,o.fit)}}
+function composeStage(g,base,F,Wx,Hx,o){
+ g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,Wx,Hx);g.fillStyle=o.paper;g.fillRect(0,0,Wx,Hx);
+ const drawBase=()=>{if(base)g.drawImage(base,o.side==="right"?Wx/2:0,0,base.width,base.height)};
+ const drawIns=()=>{const s=slots.I.src;if(!s)return;g.save();g.beginPath();g.rect(F.x,F.y,F.w,F.h);g.clip();g.globalAlpha=F.op;
+  if(fxOn()){g.drawImage(processed(s,o.fit,F.w,F.h),F.x,F.y,F.w,F.h)}
+  else{g.translate(F.x,F.y);layoutDraw(g,s,F.w,F.h,o.fit)}
+  g.restore()};
+ if(o.layer==="above"){drawBase();drawIns()}else{drawIns();drawBase()}}
+function draw(){
+ const o=opt();composeStage(sc,bsrc(),fr,W,H,o);
+ drawPv(o);
+ const live=cropBox();if(!frozen)view=live;
+ const vx=Math.floor(view.x),vw=Math.max(1,Math.min(W-vx,Math.round(view.w)));
+ if(cv.width!==vw||cv.height!==H){cv.width=vw;cv.height=H}
+ ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,vw,H);ctx.drawImage(st,vx,0,vw,H,0,0,vw,H);
+ const u=cv.width/cv.clientWidth||1;
+ ctx.save();ctx.translate(-vx,0);
+ if(frozen){ctx.fillStyle="rgba(20,24,32,.55)";if(live.x>vx)ctx.fillRect(vx,0,live.x-vx,H);const le=live.x+live.w,ve=vx+vw;if(le<ve)ctx.fillRect(le,0,ve-le,H)}
+ ctx.save();ctx.setLineDash([10*u,8*u]);ctx.lineWidth=1.5*u;ctx.strokeStyle="rgba(120,140,170,.9)";
+ ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.restore();
+ ctx.lineWidth=2*u;ctx.strokeStyle="#2a4fd6";ctx.strokeRect(fr.x,fr.y,fr.w,fr.h);
+ ctx.save();ctx.strokeStyle="#e8590c";ctx.lineWidth=2*u;
+ for(const g of guides){ctx.beginPath();if(g.axis==="x"){ctx.moveTo(g.v,0);ctx.lineTo(g.v,H)}else{ctx.moveTo(vx,g.v);ctx.lineTo(vx+vw,g.v)}ctx.stroke()}ctx.restore();
+ ctx.fillStyle="#2a4fd6";ctx.strokeStyle="#fff";
+ for(const h of handles()){ctx.beginPath();ctx.arc(h.x,h.y,8*u,0,7);ctx.fill();ctx.stroke()}
+ ctx.restore();
+ if(!bsrc()&&!slots.I.src){ctx.fillStyle="#9aa2af";ctx.font=(34*(W/1600))+"px sans-serif";ctx.textAlign="center";ctx.fillText("파일을 올리면 여기에 표시됩니다",vw/2,H/2)}
+}
+function handles(){const out=[];for(const hy of[-1,0,1])for(const hx of[-1,0,1]){if(!hx&&!hy)continue;
+ out.push({hx,hy,x:fr.x+fr.w*(hx+1)/2,y:fr.y+fr.h*(hy+1)/2})}return out}
+function sync(){const set=(k,v)=>{$("s"+k).value=v;$("o"+k).textContent=Math.round(v)+"%"};
+ set("W",fr.w/W*100);set("H",fr.h/H*100);set("X",fr.x/W*100);set("Y",fr.y/H*100);set("O",fr.op*100)}
+function refresh(){stageSize();sync();draw()}
+
+async function renderPdfPage(pdf,n){const p=await pdf.getPage(n);const vp=p.getViewport({scale:2});
+ const c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);
+ await p.render({canvas:c,canvasContext:c.getContext("2d"),viewport:vp}).promise;return c}
+const baseName=n=>n.replace(/\.[^.\/\\]+$/,"").trim();
+const isPdfFile=f=>f.type==="application/pdf"||/\.pdf$/i.test(f.name);
+const EXT_MIME={png:"image/png",apng:"image/apng",jpg:"image/jpeg",jpeg:"image/jpeg",jpe:"image/jpeg",jfif:"image/jpeg",pjpeg:"image/jpeg",pjp:"image/jpeg",gif:"image/gif",webp:"image/webp",avif:"image/avif",avifs:"image/avif",bmp:"image/bmp",dib:"image/bmp",ico:"image/x-icon",cur:"image/x-icon",svg:"image/svg+xml",tif:"image/tiff",tiff:"image/tiff",heic:"image/heic",heif:"image/heif"};
+const extOf=n=>{const m=String(n).match(/\.([a-z0-9]+)$/i);return m?m[1].toLowerCase():""};
+const isImageFile=f=>(f.type||"").startsWith("image/")||!!EXT_MIME[extOf(f.name)];
+function toCanvas(src,w,h){const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(src,0,0,w,h);return c}
+function viaImgEl(blob){return new Promise((ok,no)=>{const u=URL.createObjectURL(blob),i=new Image();
+ i.onload=()=>{try{ok(toCanvas(i,i.naturalWidth||1000,i.naturalHeight||1000))}catch(e){no(e)}finally{URL.revokeObjectURL(u)}};
+ i.onerror=()=>{URL.revokeObjectURL(u);no(new Error("decode"))};i.src=u})}
+async function fileToCanvas(file){
+ const t=file.type,e=EXT_MIME[extOf(file.name)];
+ const blob=(!t||t==="application/octet-stream"||!t.startsWith("image/"))&&e?new Blob([file],{type:e}):file;
+ let err;
+ if(window.createImageBitmap){try{const bm=await createImageBitmap(blob);try{return toCanvas(bm,bm.width,bm.height)}finally{bm.close&&bm.close()}}catch(x){err=x}}
+ try{return await viaImgEl(blob)}catch(x){err=x}
+ if(window.ImageDecoder){const ty=blob.type||e;
+  try{if(ty&&await ImageDecoder.isTypeSupported(ty)){const d=new ImageDecoder({data:await blob.arrayBuffer(),type:ty});
+   try{const {image}=await d.decode();try{return toCanvas(image,image.displayWidth,image.displayHeight)}finally{image.close()}}finally{d.close()}}}catch(x){err=x}}
+ throw err||new Error("decode")}
+const imgFailMsg=n=>n+" - 불러오지 못함. "+(/^(heic|heif|tiff?)$/.test(extOf(n))?"이 형식은 브라우저가 직접 열지 못할 수 있음. JPG나 PNG로 변환한 뒤 올려 주세요.":"브라우저가 지원하지 않는 형식이거나 손상된 파일일 수 있음.");
+async function ensureSrc(e){if(e.src)return e.src;e.src=e.pdf?await renderPdfPage(e.pdf,e.page):await fileToCanvas(e.file);return e.src}
+function rescaleFrame(){const ow=W,oh=H;stageSize();fr.x*=W/ow;fr.w*=W/ow;fr.y*=H/oh;fr.h*=H/oh}
+let selTok=0,noDl=false;
+async function select(i){const tok=++selTok;
+ if(cur>=0&&cur!==i&&bases[cur])bases[cur].src=null;
+ cur=i;renderList();
+ if(i<0){rescaleFrame();refresh();return}
+ try{await ensureSrc(bases[i])}
+ catch(err){const bad=bases[i];bases.splice(i,1);cur=-2;await select(Math.min(i,bases.length-1));$("nameB").textContent=imgFailMsg(bad.name);return}
+ if(tok!==selTok)return;
+ rescaleFrame();refresh()}
+function renderList(){const L=$("blist");L.textContent="";
+ bases.forEach((e,i)=>{const d=document.createElement("div");d.className="bi"+(i===cur?" on":"");d.dataset.i=i;
+  const b=document.createElement("button");b.className="bn";b.textContent=e.fixed?e.name+" ("+e.page+"쪽)":e.name;b.title=b.textContent;d.appendChild(b);
+  if(e.pdf&&!e.fixed&&e.total>1){const n=document.createElement("input");n.type="number";n.className="bp";n.min=1;n.max=e.total;n.value=e.page;n.title="쪽 (전체 "+e.total+"쪽)";d.appendChild(n)}
+  const x=document.createElement("button");x.className="bx";x.textContent="✕";x.setAttribute("aria-label",e.name+" 삭제");d.appendChild(x);L.appendChild(d)});
+ $("nameB").textContent=bases.length?bases.length+"장 불러옴":"";
+ $("pager").style.display=bases.length>1?"flex":"none";$("pgInfo").textContent=(cur+1)+" / "+bases.length;
+ $("bSave").textContent=(bases.length>1?bases.length+"장을 JPG로 저장":"JPG로 저장")+(noDl?" (이 화면에서는 사용 불가)":"")}
+async function addBases(files){const bad=[],add=[];
+ for(const f of files){
+  if(isPdfFile(f)){try{const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer(),verbosity:0}).promise,n=pdf.numPages,bn=baseName(f.name);
+    if(n>1){for(let p=1;p<=n;p++)add.push({name:f.name,out:bn+"_p"+String(p).padStart(String(n).length,"0"),pdf,page:p,total:n,fixed:true,src:null})}
+    else add.push({name:f.name,out:bn,pdf,page:1,total:n,fixed:false,src:null})}catch(err){bad.push(f.name)}}
+  else if(isImageFile(f))add.push({name:f.name,out:baseName(f.name),file:f,src:null});
+  else if(await fileToCanvas(f).then(()=>true,()=>false))add.push({name:f.name,out:baseName(f.name),file:f,src:null});
+  else bad.push(f.name)}
+ if(add.length){const first=bases.length;bases.push(...add);await select(first)}
+ const hwp=bad.filter(n=>/\.hwpx?$/i.test(n)),other=bad.filter(n=>!/\.hwpx?$/i.test(n)),m=[];
+ if(hwp.length)m.push("HWP는 이 화면에서 열 수 없음. 한글에서 PDF로 저장한 뒤 올려 주세요: "+hwp.join(", "));
+ if(other.length)m.push("지원하지 않거나 열리지 않는 파일: "+other.join(", "));
+ if(m.length)$("nameB").textContent=m.join(" / ")}
+async function loadI(file){
+ if(!file)return;const slot=slots.I;slot.name=file.name;$("nameI").textContent=file.name;
+ try{
+  if(isPdfFile(file)){slot.pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer(),verbosity:0}).promise;
+   $("numI").max=slot.pdf.numPages;$("numI").value=1;$("totI").textContent="/ "+slot.pdf.numPages;
+   $("pgI").style.display="flex";slot.src=await renderPdfPage(slot.pdf,1)}
+  else{slot.pdf=null;$("pgI").style.display="none";slot.src=await fileToCanvas(file)}
+ }catch(e){$("nameI").textContent=imgFailMsg(file.name);return}
+ refresh()}
+
+$("fileB").addEventListener("change",e=>{addBases([...e.target.files]);e.target.value=""});
+$("fileI").addEventListener("change",e=>loadI(e.target.files[0]));
+for(const k of["B","I"]){const d=$("drop"+k);
+ d.addEventListener("dragover",e=>{e.preventDefault();d.classList.add("over")});
+ d.addEventListener("dragleave",()=>d.classList.remove("over"));
+ d.addEventListener("drop",e=>{e.preventDefault();d.classList.remove("over");if(k==="B")addBases([...e.dataTransfer.files]);else loadI(e.dataTransfer.files[0])})}
+// 모바일: 칸을 길게 누르면 클립보드의 이미지를 붙여넣음
+async function pasteTo(k){const msg=t=>{$("name"+k).textContent=t};
+ if(!navigator.clipboard||!navigator.clipboard.read){msg("이 브라우저는 클립보드 이미지 붙여넣기를 지원하지 않음.");return}
+ try{const items=await navigator.clipboard.read(),files=[],t0=new Date(),stamp=[t0.getHours(),t0.getMinutes(),t0.getSeconds()].map(n=>String(n).padStart(2,"0")).join("");
+  for(const it of items){const ty=it.types.find(x=>x.startsWith("image/"));if(!ty)continue;
+   const b=await it.getType(ty),ext=ty.split("/")[1].replace("jpeg","jpg").replace(/\+.*$/,"");
+   files.push(new File([b],"붙여넣기-"+stamp+(files.length?"-"+(files.length+1):"")+"."+ext,{type:ty}))}
+  if(!files.length){msg("클립보드에 이미지가 없음.");return}
+  if(k==="B")await addBases(files);else await loadI(files[0])}
+ catch(e){msg(e&&e.name==="NotAllowedError"?"클립보드 읽기가 허용되지 않음. 브라우저의 붙여넣기 권한을 확인하세요.":"붙여넣지 못함: "+(e&&e.message||e))}}
+for(const k of["B","I"]){const d=$("drop"+k);let tm=0,armed=false,touching=false,sx=0,sy=0,last=0;
+ const cancel=()=>{clearTimeout(tm);armed=false;touching=false};
+ d.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse")return;cancel();touching=true;sx=e.clientX;sy=e.clientY;
+  tm=setTimeout(()=>{armed=true;if(navigator.vibrate)navigator.vibrate(15)},500)});
+ d.addEventListener("pointermove",e=>{if(touching&&(Math.abs(e.clientX-sx)>10||Math.abs(e.clientY-sy)>10))cancel()});
+ d.addEventListener("pointerup",e=>{if(!touching)return;clearTimeout(tm);const go=armed;armed=false;touching=false;if(go){last=Date.now();pasteTo(k)}});
+ d.addEventListener("pointercancel",()=>{if(!armed)cancel()});
+ d.addEventListener("contextmenu",e=>{if(touching||Date.now()-last<1500){e.preventDefault();if(touching){clearTimeout(tm);armed=true}}});
+ d.addEventListener("click",e=>{if(Date.now()-last<800){e.preventDefault();e.stopPropagation()}},true)}
+$("numI").addEventListener("change",async e=>{const s=slots.I;if(!s.pdf)return;
+ const n=Math.min(s.pdf.numPages,Math.max(1,parseInt(e.target.value)||1));e.target.value=n;s.src=await renderPdfPage(s.pdf,n);refresh()});
+$("blist").addEventListener("click",e=>{const row=e.target.closest(".bi");if(!row)return;const i=+row.dataset.i;
+ if(e.target.closest(".bx")){const was=i===cur;bases.splice(i,1);if(i<cur)cur--;
+  if(was){cur=-2;select(Math.min(i,bases.length-1))}else renderList();return}
+ if(e.target.closest(".bn"))select(i)});
+$("blist").addEventListener("change",async e=>{const n=e.target.closest(".bp");if(!n)return;const i=+n.closest(".bi").dataset.i,en=bases[i];
+ en.page=Math.min(en.total,Math.max(1,parseInt(n.value)||1));n.value=en.page;en.src=null;if(i===cur)await select(i)});
+$("bPrev").onclick=()=>select((cur-1+bases.length)%bases.length);
+$("bNext").onclick=()=>select((cur+1)%bases.length);
+$("bClear").onclick=()=>{bases.length=0;cur=-2;select(-1)};
+
+const DEF={W:()=>defFrame().w/W*100,H:()=>defFrame().h/H*100,X:()=>defFrame().x/W*100,Y:()=>defFrame().y/H*100};
+const bind=(id,k,fn)=>$(id).addEventListener("input",()=>{let v=parseFloat($(id).value);
+ if(DEF[k]){const d=DEF[k]();if(Math.abs(v-d)<=1.2){v=d;$(id).value=d}}fn(v);sync();draw()});
+bind("sW","W",v=>fr.w=v/100*W);bind("sH","H",v=>fr.h=v/100*H);bind("sX","X",v=>fr.x=v/100*W);bind("sY","Y",v=>fr.y=v/100*H);bind("sO","O",v=>fr.op=v/100);
+$("bStrip").onclick=()=>{strip();refresh()};
+$("bPage").onclick=()=>{const r=halfRect(false);fr.x=r.x;fr.y=0;fr.w=r.w;fr.h=H;refresh()};
+$("fit").addEventListener("input",draw);
+
+
+/* 칸 끌기와 크기 조절 */
+let drag=null;
+const unit=()=>cv.width/cv.clientWidth||1;
+const pos=e=>{const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*cv.width/r.width+view.x,y:(e.clientY-r.top)*H/r.height}};
+function hit(p){const u=unit();
+ for(const h of handles())if(Math.hypot(p.x-h.x,p.y-h.y)<=14*u)return{m:"scale",hx:h.hx,hy:h.hy};
+ if(p.x>=fr.x&&p.x<=fr.x+fr.w&&p.y>=fr.y&&p.y<=fr.y+fr.h)return{m:"move"};return null}
+const CUR={"-1,-1":"nwse-resize","1,1":"nwse-resize","1,-1":"nesw-resize","-1,1":"nesw-resize","0,-1":"ns-resize","0,1":"ns-resize","-1,0":"ew-resize","1,0":"ew-resize"};
+function snapTo(v,ts,th,axis){for(const t of ts)if(Math.abs(v-t)<=th){guides.push({axis,v:t});return t}return v}
+cv.addEventListener("pointerdown",e=>{const p=pos(e),h=hit(p);if(!h)return;
+ drag={...h,p,x0:fr.x,y0:fr.y,x1:fr.x+fr.w,y1:fr.y+fr.h};frozen=true;guides=[];cv.setPointerCapture(e.pointerId)});
+cv.addEventListener("pointermove",e=>{const p=pos(e);
+ if(!drag){const h=hit(p);cv.style.cursor=!h?"default":h.m==="move"?"move":CUR[h.hx+","+h.hy];return}
+ const dx=p.x-drag.p.x,dy=p.y-drag.p.y,d=defFrame(),th=10*unit();let{x0,y0,x1,y1}=drag;guides=[];
+ if(drag.m==="move"){x0+=dx;x1+=dx;y0+=dy;y1+=dy;
+  let sx=snapTo(x0,[d.x],th,"x")-x0;if(!sx&&!guides.length)sx=snapTo(x1,[d.x+d.w],th,"x")-x1;
+  const gx=guides.length;let sy=snapTo(y0,[d.y],th,"y")-y0;if(!sy&&guides.length===gx)sy=snapTo(y1,[d.y+d.h],th,"y")-y1;
+  x0+=sx;x1+=sx;y0+=sy;y1+=sy}
+ else{if(drag.hx<0)x0=snapTo(p.x,[d.x,d.x+d.w],th,"x");if(drag.hx>0)x1=snapTo(p.x,[d.x,d.x+d.w],th,"x");
+  if(drag.hy<0)y0=snapTo(p.y,[d.y,d.y+d.h],th,"y");if(drag.hy>0)y1=snapTo(p.y,[d.y,d.y+d.h],th,"y")}
+ const a=Math.max(0,Math.min(x0,x1)),b=Math.min(W,Math.max(x0,x1)),c=Math.max(0,Math.min(y0,y1)),f=Math.min(H,Math.max(y0,y1));
+ fr.x=a;fr.w=Math.max(12,b-a);fr.y=c;fr.h=Math.max(12,f-c);
+ sync();draw()});
+const end=()=>{if(!drag)return;drag=null;frozen=false;guides=[];sync();draw()};cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);
+window.addEventListener("resize",draw);
+
+let dl=null;
+if(window.claude&&claude.use){claude.use("downloads").then(d=>{dl=d;if(!dl){noDl=true;renderList()}}).catch(()=>{})}
+const say=t=>{$("saveMsg").textContent=t||""};
+const toBlob=c=>new Promise(ok=>{const f=document.createElement("canvas");f.width=c.width;f.height=c.height;const g=f.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,f.width,f.height);g.drawImage(c,0,0);f.toBlob(ok,"image/jpeg",0.95)});
+function uniq(names){const seen={};return names.map(n=>{const k=seen[n]=(seen[n]||0)+1;return k>1?n+"-"+k:n})}
+function cropped(src,o){const Wx=src.width*2,Hx=src.height,k=Wx/W,F={x:fr.x*k,w:fr.w*k,y:fr.y*Hx/H,h:fr.h*Hx/H,op:fr.op},
+ full=document.createElement("canvas");full.width=Wx;full.height=Hx;composeStage(full.getContext("2d"),src,F,Wx,Hx,o);
+ const c=cropBox(F,Wx),x=Math.round(c.x),w=Math.min(Wx-x,Math.round(c.w)),oc=document.createElement("canvas");oc.width=w;oc.height=Hx;
+ oc.getContext("2d").drawImage(full,x,0,w,Hx,0,0,w,Hx);return oc}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function saveFile(name,data){
+ if(window.AndroidSaver){try{const b64=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]);r.onerror=()=>no(r.error);r.readAsDataURL(data)});
+  const res=window.AndroidSaver.saveJpg(name,b64);if(res==="ok"){say("갤러리(Pictures/SpreadComposer)에 저장했습니다.");return"ok"}
+  say("저장하지 못했습니다: "+res);return"fail"}catch(e){say("저장하지 못했습니다.");return"fail"}}
+ if(dl){for(let t=0;;t++){try{await dl.save({filename:name,data});say("");return"ok"}
+   catch(e){const c=e&&e.code;
+    if(c==="rate_limited"&&t<6){say("저장 확인창을 기다리는 중…");await wait(1000*(t+1));continue}
+    say(c==="declined"?"저장을 취소했습니다.":c==="rate_limited"?"저장 요청이 한꺼번에 몰려 거절됨.":"저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.");
+    return c==="declined"?"declined":"fail"}}}
+ else{const a=document.createElement("a");a.href=URL.createObjectURL(data);a.download=name;document.body.appendChild(a);a.click();const u=a.href;setTimeout(()=>URL.revokeObjectURL(u),120000);a.remove();return"ok"}}
+$("bSave").onclick=async()=>{
+ if(!bases.length&&!slots.I.src){say("먼저 파일을 올려 주세요.");return}
+ say("");const o=opt(),btn=$("bSave");
+ if(bases.length<=1){const c=cropBox(),x=Math.round(c.x),w=Math.min(W-x,Math.round(c.w)),oc=document.createElement("canvas");oc.width=w;oc.height=H;
+  oc.getContext("2d").drawImage(st,x,0,w,H,0,0,w,H);
+  await saveFile("보정-"+(bases[0]?bases[0].out:(baseName(slots.I.name)||"속지-합성"))+".jpg",await toBlob(oc));return}
+ btn.disabled=true;
+ try{const names=uniq(bases.map(e=>"보정-"+e.out)),n=bases.length,blobs=[];
+  for(let i=0;i<n;i++){btn.textContent="만드는 중… "+(i+1)+" / "+n;
+   const e=bases[i],src=await ensureSrc(e);blobs.push(await toBlob(cropped(src,o)));
+   if(i!==cur)e.src=null;await wait(0)}
+  if(!dl&&!window.AndroidSaver)say("크롬이 '여러 파일 다운로드' 허용을 물으면 '허용'을 눌러 주세요. 한 번 허용하면 다음부터는 묻지 않음.");
+  let saved=0,last="ok";
+  for(let i=0;i<n;i++){btn.textContent="저장 중… "+(i+1)+" / "+n;
+   last=await saveFile(names[i]+".jpg",blobs[i]);
+   if(last==="ok"){saved++;if(i<n-1)await wait(dl?600:400)}else break}
+  if(saved<n&&last!=="declined")say(saved+" / "+n+"장만 저장됨. 저장되지 않은 파일: "+names.slice(saved).map(x=>x+".jpg").join(", "))}
+ catch(err){say("저장 중 문제가 생겼습니다: "+(err&&err.message||err))}
+ finally{btn.disabled=false;renderList();draw()}};
+
+strip();refresh();renderList();
+</script>
+</body>
+</html>
