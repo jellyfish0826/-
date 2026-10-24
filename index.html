@@ -40,7 +40,7 @@ button.pri{background:var(--acc);color:var(--accfg);border-color:var(--acc);font
 .btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .pg{display:none}
 .stagebox{border-radius:8px;overflow:hidden;line-height:0}
-canvas{display:block;width:100%;height:auto;touch-action:none;cursor:default}
+canvas{display:block;width:100%;height:auto;touch-action:pan-y;cursor:default}
 .sub{margin:12px 0 0;font-weight:700;font-size:13px}.sub:first-child{margin-top:0}
 details.box>summary{font-size:14px;font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
 details.box>summary::-webkit-details-marker{display:none}
@@ -347,6 +347,7 @@ cv.addEventListener("pointermove",e=>{const p=pos(e);
  const a=Math.max(0,Math.min(x0,x1)),b=Math.min(W,Math.max(x0,x1)),c=Math.max(0,Math.min(y0,y1)),f=Math.min(H,Math.max(y0,y1));
  fr.x=a;fr.w=Math.max(12,b-a);fr.y=c;fr.h=Math.max(12,f-c);
  sync();draw()});
+cv.addEventListener("touchmove",e=>{if(drag&&e.cancelable)e.preventDefault()},{passive:false});
 const end=()=>{if(!drag)return;drag=null;frozen=false;guides=[];sync();draw()};cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);
 window.addEventListener("resize",draw);
 
