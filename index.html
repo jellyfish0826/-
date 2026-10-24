@@ -16,8 +16,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Pretendard","
 header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
 h1{font-size:17px;margin:0;font-weight:700}
 header p{margin:2px 0 0;color:var(--mute);font-size:13px}
-.wrap{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px;max-width:1500px;margin:0 auto}
-@media(max-width:860px){.wrap{grid-template-columns:1fr}}
+.wrap{display:grid;grid-template-columns:720px minmax(0,1fr);gap:16px;padding:16px;max-width:1500px;margin:0 auto}
+@media(max-width:1100px){.wrap{grid-template-columns:1fr}}
 .side{display:flex;flex-direction:column;gap:12px}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
 .box h2{font-size:14px;margin:0 0 8px}
@@ -65,7 +65,7 @@ details.box>summary:focus-visible{outline:2px solid var(--acc);outline-offset:3p
 <body>
 <header>
 <h1>속지 합성 도구</h1>
-<p>오른쪽 페이지에 바탕, 왼쪽 페이지에 끼울 디자인을 올려 한 장으로 합칩니다.</p>
+<p>오른쪽 페이지(A5 148×210 고정)에 바탕, 왼쪽 페이지에 끼울 디자인을 올려 한 장으로 합칩니다. Ctrl+Z 실행 취소 · Ctrl+Shift+Z / Ctrl+Y 다시 실행</p>
 </header>
 <div class="wrap">
 <div class="side">
@@ -109,13 +109,21 @@ const $=id=>document.getElementById(id);
 const cv=$("cv"),ctx=cv.getContext("2d");
 const slots={I:{src:null,pdf:null,name:""}};const bases=[];let cur=-1;const bsrc=()=>cur>=0&&bases[cur]?bases[cur].src:null;
 const fr={x:0,y:0,w:100,h:100,op:1};
-let W=1600,H=1100;
+const PW=1748,PH=2480; // A5 148×210mm @300dpi (오른쪽 페이지 칸 고정 크기)
+let W=PW*2,H=PH;
 const opt=()=>({side:"right",fit:$("fit").value,layer:"above",paper:"#ffffff",clip:true});
 const halfRect=(onBaseSide)=>{const right=opt().side==="right"?onBaseSide:!onBaseSide;return{x:right?W/2:0,y:0,w:W/2,h:H}};
 const st=document.createElement("canvas"),sc=st.getContext("2d");
 let view={x:0,w:W},frozen=false,guides=[];
-function stageSize(){const b=bsrc();if(b){W=b.width*2;H=b.height}else{W=1600;H=1100}
+function stageSize(){W=PW*2;H=PH;
  if(st.width!==W||st.height!==H){st.width=W;st.height=H}}
+let pgC=null,pgSrc=null;
+function basePage(b){ // 바탕을 A5 칸에 가득(cover) 맞춤: 중앙 정렬, 작으면 균등 확대, 넘치면 균등하게 잘림
+ if(pgC&&pgSrc===b)return pgC;
+ const c=document.createElement("canvas");c.width=PW;c.height=PH;const g=c.getContext("2d");
+ g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";
+ const k=Math.max(PW/b.width,PH/b.height),w=b.width*k,h=b.height*k;
+ g.drawImage(b,(PW-w)/2,(PH-h)/2,w,h);pgC=c;pgSrc=b;return c}
 function defFrame(){const w=W/2*0.1125;return{x:opt().side==="right"?W/2-w:W/2,y:0,w,h:H}}
 function strip(){Object.assign(fr,defFrame())}
 function cropBox(F=fr,Wx=W){if(!opt().clip)return{x:0,w:Wx};if(opt().side==="right"){const x=Math.max(0,Math.min(F.x,Wx/2));return{x,w:Wx-x}}return{x:0,w:Math.min(Wx,Math.max(F.x+F.w,Wx/2))}}
@@ -163,14 +171,14 @@ for(const sp of SPEC){
  adjBox.appendChild(row);
  const inp=row.querySelector("input"),out=row.querySelector("output");
  const show=()=>{out.textContent=(k==="dot"&&a.dot<2)||(k==="levels"&&a.levels<2)?"끔":a[k]+unit};
- let drag=false;const snaps=k==="rot"?[-90,0,90]:(min<=0&&max>=0?[0]:[]),thr=k==="rot"?3:Math.max(1,(max-min)*0.0125);
+ let drag=false;const snaps=k==="rot"?[-90,0,90]:k==="zoom"?[100]:(min<=0&&max>=0?[0]:[]),thr=k==="rot"||k==="zoom"?3:Math.max(1,(max-min)*0.0125);
  if(snaps.length){inp.addEventListener("pointerdown",()=>{drag=true});for(const ev of["pointerup","pointercancel"])window.addEventListener(ev,()=>{drag=false})}
  inp.addEventListener("input",()=>{let v=parseFloat(inp.value);
   if(drag){for(const t of snaps)if(Math.abs(v-t)<=thr){v=t;break};inp.value=v}
-  a[k]=v;show();later()});show();
+  a[k]=v;show();later()});inp.addEventListener("change",()=>commit());show();
 }
-$("bAdj").onclick=()=>{for(const sp of SPEC){if(sp.length===1)continue;const k=sp[0];a[k]=A0[k];$("a_"+k).value=A0[k];$("a_"+k).dispatchEvent(new Event("input"))}};
-$("bSeed").onclick=()=>{a.seed=(Math.random()*1e9)|0;draw()};
+$("bAdj").onclick=()=>{for(const sp of SPEC){if(sp.length===1)continue;const k=sp[0];a[k]=A0[k];$("a_"+k).value=A0[k];$("a_"+k).dispatchEvent(new Event("input"))}commit()};
+$("bSeed").onclick=()=>{a.seed=(Math.random()*1e9)|0;draw();commit()};
 const pv=$("pv"),pg=pv.getContext("2d");
 function drawPv(o){const s=slots.I.src;
  if(!s){if(pv.width!==160||pv.height!==420){pv.width=160;pv.height=420}pg.setTransform(1,0,0,1,0,0);pg.clearRect(0,0,160,420);
@@ -181,7 +189,7 @@ function drawPv(o){const s=slots.I.src;
  if(fxOn())pg.drawImage(processed(s,o.fit,fr.w,fr.h),0,0,pw,ph);else{pg.scale(k,k);layoutDraw(pg,s,w,h,o.fit)}}
 function composeStage(g,base,F,Wx,Hx,o){
  g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,Wx,Hx);g.fillStyle=o.paper;g.fillRect(0,0,Wx,Hx);
- const drawBase=()=>{if(base)g.drawImage(base,o.side==="right"?Wx/2:0,0,base.width,base.height)};
+ const drawBase=()=>{if(base)g.drawImage(basePage(base),o.side==="right"?Wx/2:0,0)};
  const drawIns=()=>{const s=slots.I.src;if(!s)return;g.save();g.beginPath();g.rect(F.x,F.y,F.w,F.h);g.clip();g.globalAlpha=F.op;
   if(fxOn()){g.drawImage(processed(s,o.fit,F.w,F.h),F.x,F.y,F.w,F.h)}
   else{g.translate(F.x,F.y);layoutDraw(g,s,F.w,F.h,o.fit)}
@@ -326,11 +334,13 @@ $("bClear").onclick=()=>{bases.length=0;cur=-2;select(-1)};
 
 const DEF={W:()=>defFrame().w/W*100,H:()=>defFrame().h/H*100,X:()=>defFrame().x/W*100,Y:()=>defFrame().y/H*100};
 const bind=(id,k,fn)=>$(id).addEventListener("input",()=>{let v=parseFloat($(id).value);
- if(DEF[k]){const d=DEF[k]();if(Math.abs(v-d)<=1.2){v=d;$(id).value=d}}fn(v);sync();draw()});
+ if(DEF[k]){const d=DEF[k]();if(Math.abs(v-d)<=1.2){v=d;$(id).value=d}}
+ if(k==="W"&&v>=98.5){v=100;$(id).value=100}fn(v);sync();draw()});
 bind("sW","W",v=>fr.w=v/100*W);bind("sH","H",v=>fr.h=v/100*H);bind("sX","X",v=>fr.x=v/100*W);bind("sY","Y",v=>fr.y=v/100*H);bind("sO","O",v=>fr.op=v/100);
-$("bStrip").onclick=()=>{strip();refresh()};
-$("bPage").onclick=()=>{const r=halfRect(false);fr.x=r.x;fr.y=0;fr.w=r.w;fr.h=H;refresh()};
-$("fit").addEventListener("input",draw);
+$("bStrip").onclick=()=>{strip();refresh();commit()};
+$("bPage").onclick=()=>{const r=halfRect(false);fr.x=r.x;fr.y=0;fr.w=r.w;fr.h=H;refresh();commit()};
+$("fit").addEventListener("input",draw);$("fit").addEventListener("change",()=>commit());
+for(const id of["sW","sH","sX","sY","sO"])$(id).addEventListener("change",()=>commit());
 
 
 /* 칸 끌기와 크기 조절 */
@@ -357,15 +367,32 @@ cv.addEventListener("pointermove",e=>{const p=pos(e);
  fr.x=a;fr.w=Math.max(12,b-a);fr.y=c;fr.h=Math.max(12,f-c);
  sync();draw()});
 cv.addEventListener("touchmove",e=>{if(drag&&e.cancelable)e.preventDefault()},{passive:false});
-const end=()=>{if(!drag)return;drag=null;frozen=false;guides=[];sync();draw()};cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);
+const end=()=>{if(!drag)return;drag=null;frozen=false;guides=[];sync();draw();commit()};cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);
 window.addEventListener("resize",draw);
+
+/* 실행 취소 / 다시 실행: 칸 위치·크기·투명도, 맞춤, 효과 값 기준 (파일 추가·삭제는 제외) */
+const hist=[],HMAX=300;let hp=-1,restoring=false;
+const snap=()=>JSON.stringify({fr:{x:fr.x,y:fr.y,w:fr.w,h:fr.h,op:fr.op},a:{...a},fit:$("fit").value});
+function commit(){if(restoring||drag)return;const s=snap();if(hist[hp]===s)return;
+ hist.length=hp+1;hist.push(s);if(hist.length>HMAX)hist.shift();hp=hist.length-1}
+function restore(s){const o=JSON.parse(s);restoring=true;
+ Object.assign(fr,o.fr);$("fit").value=o.fit;
+ for(const sp of SPEC){if(sp.length===1)continue;const k=sp[0],el=$("a_"+k);a[k]=o.a[k];el.value=o.a[k];el.dispatchEvent(new Event("input"))}
+ a.seed=o.a.seed;restoring=false;sync();draw()}
+function undo(){if(drag||hp<=0)return;restore(hist[--hp])}
+function redo(){if(drag||hp>=hist.length-1)return;restore(hist[++hp])}
+window.addEventListener("keydown",e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
+ const t=e.target,tag=t&&t.tagName;
+ if(tag==="TEXTAREA"||(t&&t.isContentEditable)||(tag==="INPUT"&&/^(text|number|search|email|url|tel|password)$/.test(t.type)))return;
+ const c=e.code,k=(e.key||"").toLowerCase(),isZ=c==="KeyZ"||k==="z"||k==="ㅋ",isY=c==="KeyY"||k==="y"||k==="ㅛ";
+ if(isZ){e.preventDefault();if(e.shiftKey)redo();else undo()}else if(isY){e.preventDefault();redo()}});
 
 let dl=null;
 if(window.claude&&claude.use){claude.use("downloads").then(d=>{dl=d;if(!dl){noDl=true;renderList()}}).catch(()=>{})}
 const say=t=>{$("saveMsg").textContent=t||""};
 const toBlob=c=>new Promise(ok=>{const f=document.createElement("canvas");f.width=c.width;f.height=c.height;const g=f.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,f.width,f.height);g.drawImage(c,0,0);f.toBlob(ok,"image/jpeg",0.95)});
 function uniq(names){const seen={};return names.map(n=>{const k=seen[n]=(seen[n]||0)+1;return k>1?n+"-"+k:n})}
-function cropped(src,o){const Wx=src.width*2,Hx=src.height,k=Wx/W,F={x:fr.x*k,w:fr.w*k,y:fr.y*Hx/H,h:fr.h*Hx/H,op:fr.op},
+function cropped(src,o){const Wx=W,Hx=H,F={...fr},
  full=document.createElement("canvas");full.width=Wx;full.height=Hx;composeStage(full.getContext("2d"),src,F,Wx,Hx,o);
  const c=cropBox(F,Wx),x=Math.round(c.x),w=Math.min(Wx-x,Math.round(c.w)),oc=document.createElement("canvas");oc.width=w;oc.height=Hx;
  oc.getContext("2d").drawImage(full,x,0,w,Hx,0,0,w,Hx);return oc}
@@ -400,7 +427,7 @@ $("bSave").onclick=async()=>{
  catch(err){say("저장 중 문제가 생겼습니다: "+(err&&err.message||err))}
  finally{btn.disabled=false;renderList();draw()}};
 
-strip();refresh();renderList();
+strip();refresh();renderList();commit();
 </script>
 </body>
 </html>
