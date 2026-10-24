@@ -286,6 +286,15 @@ for(const k of["B","I"]){const d=$("drop"+k);
  d.addEventListener("drop",e=>{e.preventDefault();d.classList.remove("over");if(k==="B")addBases([...e.dataTransfer.files]);else loadI(e.dataTransfer.files[0])})}
 // 모바일: 칸을 길게 누르면 클립보드의 이미지를 붙여넣음
 async function pasteTo(k){const msg=t=>{$("name"+k).textContent=t};
+ if(window.AndroidSaver&&AndroidSaver.readClipboardImages){
+  try{const arr=JSON.parse(AndroidSaver.readClipboardImages()),files=[],t0=new Date(),stamp=[t0.getHours(),t0.getMinutes(),t0.getSeconds()].map(n=>String(n).padStart(2,"0")).join("");
+   for(const o of arr){const bin=atob(o.data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+    const ext=o.type.split("/")[1].replace("jpeg","jpg").replace(/\+.*$/,"");
+    files.push(new File([u],"붙여넣기-"+stamp+(files.length?"-"+(files.length+1):"")+"."+ext,{type:o.type}))}
+   if(!files.length){msg("클립보드에 이미지가 없음. 이미지를 '복사'한 뒤 다시 길게 눌러 주세요.");return}
+   if(k==="B")await addBases(files);else await loadI(files[0])}
+  catch(e){msg("붙여넣지 못함: "+(e&&e.message||e))}
+  return}
  if(!navigator.clipboard||!navigator.clipboard.read){msg("이 브라우저는 클립보드 이미지 붙여넣기를 지원하지 않음.");return}
  try{const items=await navigator.clipboard.read(),files=[],t0=new Date(),stamp=[t0.getHours(),t0.getMinutes(),t0.getSeconds()].map(n=>String(n).padStart(2,"0")).join("");
   for(const it of items){const ty=it.types.find(x=>x.startsWith("image/"));if(!ty)continue;

@@ -1,7 +1,10 @@
 package com.spreadcomposer.app;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -11,6 +14,11 @@ import android.webkit.JavascriptInterface;
 
 import com.getcapacitor.BridgeActivity;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 public class MainActivity extends BridgeActivity {
@@ -56,6 +64,39 @@ public class MainActivity extends BridgeActivity {
                 return "ok";
             } catch (Exception e) {
                 return String.valueOf(e.getMessage());
+            }
+        }
+
+        /** 클립보드의 이미지(content URI)를 [{type, data(base64)}] JSON 문자열로 반환 */
+        @JavascriptInterface
+        public String readClipboardImages() {
+            try {
+                ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                if (cm == null || !cm.hasPrimaryClip()) return "[]";
+                ClipData cd = cm.getPrimaryClip();
+                if (cd == null) return "[]";
+                ContentResolver resolver = activity.getContentResolver();
+                JSONArray arr = new JSONArray();
+                for (int i = 0; i < cd.getItemCount(); i++) {
+                    Uri u = cd.getItemAt(i).getUri();
+                    if (u == null) continue;
+                    String type = resolver.getType(u);
+                    if (type == null || !type.startsWith("image/")) continue;
+                    try (InputStream in = resolver.openInputStream(u)) {
+                        if (in == null) continue;
+                        ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                        byte[] buf = new byte[8192];
+                        int n;
+                        while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                        JSONObject o = new JSONObject();
+                        o.put("type", type);
+                        o.put("data", Base64.encodeToString(bo.toByteArray(), Base64.NO_WRAP));
+                        arr.put(o);
+                    }
+                }
+                return arr.toString();
+            } catch (Exception e) {
+                return "[]";
             }
         }
     }
